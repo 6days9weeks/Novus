@@ -158,9 +158,14 @@ class Loop(Generic[LF]):
             self._next_iteration = self._get_next_sleep_time()
         else:
             self._next_iteration = datetime.datetime.now(datetime.timezone.utc)
+            await asyncio.sleep(0)  # allows canceling in before_loop
         try:
-            await self._try_sleep_until(self._next_iteration)
+            if self._stop_next_iteration:  # allow calling stop() before first iteration
+                return
             while True:
+                # sleep before the body of the task for explicit time intervals
+                if self._time is not MISSING:
+                    await self._try_sleep_until(self._next_iteration)
                 if not self._last_iteration_failed:
                     self._last_iteration = self._next_iteration
                     self._next_iteration = self._get_next_sleep_time()
@@ -176,7 +181,9 @@ class Loop(Generic[LF]):
                     if self._stop_next_iteration:
                         return
 
-                    await self._try_sleep_until(self._next_iteration)
+                    # sleep after the body of the task for relative time intervals
+                    if self._time is MISSING:
+                        await self._try_sleep_until(self._next_iteration)
 
                     self._current_loop += 1
                     if self._current_loop == self.count:
@@ -452,6 +459,9 @@ class Loop(Generic[LF]):
         such as :meth:`discord.Client.wait_until_ready`.
 
         The coroutine must take no arguments (except ``self`` in a class context).
+
+        .. versionchanged:: 2.0
+            Calling :meth:`stop` in this coroutine will stop the initial iteration from running.
 
         Parameters
         ------------
