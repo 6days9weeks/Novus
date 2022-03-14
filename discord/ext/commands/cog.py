@@ -25,7 +25,8 @@ DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 import inspect
-import discord.utils
+import discord
+from discord.utils import maybe_coroutine
 
 from typing import Any, Callable, ClassVar, Dict, Generator, List, Optional, TYPE_CHECKING, Tuple, TypeVar, Type
 
@@ -322,13 +323,30 @@ class Cog(metaclass=CogMeta):
         return not hasattr(self.cog_command_error.__func__, '__cog_special_method__')
 
     @_cog_special_method
-    def cog_unload(self) -> None:
-        """A special method that is called when the cog gets removed.
+    async def cog_load(self) -> None:
+        """|maybecoro|
 
-        This function **cannot** be a coroutine. It must be a regular
-        function.
+        A special method that is called when the cog gets loaded.
+
+        Subclasses must replace this if they want special asynchronous loading behaviour.
+        Note that the ``__init__`` special method does not allow asynchronous code to run
+        inside it, thus this is helpful for setting up code that needs to be asynchronous.
+
+        .. versionadded:: 2.0
+        """
+        pass
+
+    @_cog_special_method
+    async def cog_unload(self) -> None:
+        """|maybecoro|
+
+        A special method that is called when the cog gets removed.
 
         Subclasses must replace this if they want special unloading behaviour.
+
+        .. versionchanged:: 2.0
+
+            This method can now be a :term:`coroutine`.
         """
         pass
 
@@ -411,8 +429,12 @@ class Cog(metaclass=CogMeta):
         """
         pass
 
-    def _inject(self: CogT, bot: BotBase) -> CogT:
+    async def _inject(self: CogT, bot: BotBase, override: bool) -> CogT:
         cls = self.__class__
+
+        # we'll call this first so that errors can propagate without
+        # having to worry about undoing anything
+        await maybe_coroutine(self.cog_load)
 
         # realistically, the only thing that can cause loading errors
         # is essentially just the command loading, which raises if there are
@@ -446,7 +468,7 @@ class Cog(metaclass=CogMeta):
 
         return self
 
-    def _eject(self, bot: BotBase) -> None:
+    async def _eject(self, bot: BotBase) -> None:
         cls = self.__class__
 
         try:
@@ -464,6 +486,6 @@ class Cog(metaclass=CogMeta):
                 bot.remove_check(self.bot_check_once, call_once=True)
         finally:
             try:
-                self.cog_unload()
+                await maybe_coroutine(self.cog_unload)
             except Exception:
                 pass
