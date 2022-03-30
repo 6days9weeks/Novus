@@ -8,7 +8,7 @@ class MyClient(discord.Client):
         super().__init__(*args, **kwargs)
 
         # an attribute we can access from our task
-        self.counter = 0
+        self.counter: int = 0
 
         # start the task to run in the background
         self.my_background_task.start()
