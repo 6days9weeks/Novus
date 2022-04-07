@@ -561,6 +561,7 @@ class Thread(Messageable, Hashable):
         archived: bool = MISSING,
         locked: bool = MISSING,
         invitable: bool = MISSING,
+        pinned: bool = MISSING,
         slowmode_delay: int = MISSING,
         auto_archive_duration: ThreadArchiveDuration = MISSING,
     ) -> Thread:
@@ -583,6 +584,8 @@ class Thread(Messageable, Hashable):
             Whether to archive the thread or not.
         locked: :class:`bool`
             Whether to lock the thread or not.
+        pinned: :class:`bool`
+            Whether to pin the thread or not. This only works if the thread is part of a forum.
         invitable: :class:`bool`
             Whether non-moderators can add other non-moderators to this thread.
             Only available for private threads.
@@ -618,6 +621,10 @@ class Thread(Messageable, Hashable):
             payload['invitable'] = invitable
         if slowmode_delay is not MISSING:
             payload['rate_limit_per_user'] = slowmode_delay
+        if pinned is not MISSING:
+            flags = self.flags
+            flags.pinned = pinned
+            payload['flags'] = flags.value
 
         data = await self._state.http.edit_channel(self.id, **payload)
         # The data payload will always be a Thread payload
