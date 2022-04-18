@@ -272,7 +272,6 @@ class Loop(Generic[LF]):
             self._is_being_cancelled = False
             self._current_loop = 0
             self._stop_next_iteration = False
-            self._has_failed = False
 
     def __get__(self, obj: T, objtype: Type[T]) -> Loop[LF]:
         if obj is None:
@@ -390,6 +389,7 @@ class Loop(Generic[LF]):
         if self.loop is MISSING:
             self.loop = asyncio.get_event_loop()
 
+        self._has_failed = False
         self._task = self.loop.create_task(self._loop(*args, **kwargs))
         return self._task
 
