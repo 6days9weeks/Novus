@@ -20,7 +20,7 @@ from discord.types.user import PartialUser
 from . import utils as vbu
 
 
-class OwnerOnly(vbu.Cog[vbu.Bot], command_attrs={'hidden': True, 'add_slash_command': False}):
+class OwnerOnly(vbu.Cog[vbu.Bot], command_attrs={'hidden': False, 'add_slash_command': False}):
     """
     Handles commands that only the owner should be able to run.
     """
@@ -358,10 +358,13 @@ class OwnerOnly(vbu.Cog[vbu.Bot], command_attrs={'hidden': True, 'add_slash_comm
         text += self.get_execution_time(end_time, start_time)
 
         # Output to chat
-        return await ctx.send(
-            self.get_execution_time(end_time, start_time),
-            file=discord.File(io.StringIO(result), filename=f"ev.{filetype}")
-        )
+        if len(text) > 2000:
+            try:
+                return await ctx.send(self.get_execution_time(end_time, start_time), file=discord.File(io.StringIO(result), filename=f"ev.{filetype}"))
+            except discord.HTTPException:
+                return await ctx.send("I don't have permission to attach files here.")
+        else:
+            return await ctx.send(text)
 
     @vbu.command(aliases=['rld', 'rl'])
     @commands.is_owner()
@@ -370,7 +373,8 @@ class OwnerOnly(vbu.Cog[vbu.Bot], command_attrs={'hidden': True, 'add_slash_comm
         """
         Unloads and reloads a cog from the bot.
         """
-
+        if not cog_name:
+            raise vbu.errors.MissingRequiredArgumentString("cog_name")
         # Get a list of cogs to reload
         cog_name = '_'.join([i for i in cog_name])
         if cog_name == '*':
@@ -465,10 +469,12 @@ class OwnerOnly(vbu.Cog[vbu.Bot], command_attrs={'hidden': True, 'add_slash_comm
         sql = self._cleanup_code(sql)
 
         # Get the data we asked for
+        start_time = time.perf_counter()
         async with self.bot.database() as db:
             rows = await db(sql.format(guild=None if ctx.guild is None else ctx.guild.id, author=ctx.author.id, channel=ctx.channel.id))
         if not rows:
             return await ctx.send("No content.")
+        end_time = time.perf_counter()
 
         # Set up some metadata for us to format things nicely
         headers = list(rows[0].keys())
@@ -507,7 +513,7 @@ class OwnerOnly(vbu.Cog[vbu.Bot], command_attrs={'hidden': True, 'add_slash_comm
         # Send it out
         string_output = '\n'.join(lines)
         file = discord.File(io.StringIO(string_output), filename="runsql.txt")
-        await ctx.send(file=file)
+        await ctx.send(self.get_execution_time(end_time, start_time), file=file)
 
     @vbu.group()
     @commands.is_owner()

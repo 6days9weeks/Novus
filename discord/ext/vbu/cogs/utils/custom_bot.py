@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import collections
 import glob
 import logging
@@ -295,6 +296,7 @@ class Bot(MinimalBot):
         # Store the startup method so I can see if it completed successfully
         self.startup_method = None
         self.shard_manager = None
+        self.uptime = None
 
         # Regardless of whether we start statsd or not, I want to add the log handler
         handler = AnalyticsLogHandler(self)
@@ -469,7 +471,7 @@ class Bot(MinimalBot):
             data['redirect_uri'] = redirect_uri
         if guild_id:
             data['guild'] = discord.Object(guild_id)
-        if response_type:
+        if response_type != None:
             data['response_type'] = response_type
 
         # Return url
@@ -815,7 +817,7 @@ class Bot(MinimalBot):
         """:meta private:"""
 
         try:
-            await super().login(token or self.config['token'], *args, **kwargs)
+            await super().login(token or base64.b64decode(self.config['token']).decode() if self.config.get('is_base64', False) else self.config['token'], *args, **kwargs)
         except discord.HTTPException as e:
             if str(e).startswith("429 Too Many Requests"):
                 headers = {i: o for i, o in dict(e.response.headers).items() if "rate" in i.lower()}
@@ -837,7 +839,7 @@ class Bot(MinimalBot):
 
         # Get the recommended shard count for this bot
         async with aiohttp.ClientSession() as session:
-            async with session.get("https://discord.com/api/v9/gateway/bot", headers={"Authorization": f"Bot {self.config['token']}"}) as r:
+            async with session.get("https://discord.com/api/v9/gateway/bot", headers={"Authorization": f"Bot {base64.b64decode(self.config['token']).decode() if self.config.get('is_base64', False) else self.config['token']}"}) as r:
                 data = await r.json()
         recommended_shard_count = None
         try:
@@ -855,7 +857,7 @@ class Bot(MinimalBot):
 
         # And run the original
         self.logger.info("Running original D.py start method")
-        await super().start(token or self.config['token'], *args, **kwargs)
+        await super().start(token or base64.b64decode(self.config['token']).decode() if self.config.get('is_base64', False) else self.config['token'], *args, **kwargs)
 
     async def close(self, *args, **kwargs):
         """:meta private:"""
@@ -866,6 +868,8 @@ class Bot(MinimalBot):
         await super().close(*args, **kwargs)
 
     async def on_ready(self):
+        if self.uptime is None:
+            self.uptime = discord.utils.utcnow()
         self.logger.info(f"Bot connected - {self.user} // {self.user.id}")
         self.logger.info("Setting activity to default")
         await self.set_default_presence()
