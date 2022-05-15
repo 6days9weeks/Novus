@@ -18,6 +18,7 @@ import toml
 import discord
 from discord.iterators import HistoryIterator
 from discord.ext import commands
+from contextvars import ContextVar
 import upgradechat
 
 from .custom_context import Context, SlashContext
