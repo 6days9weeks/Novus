@@ -20,7 +20,35 @@ from discord.types.user import PartialUser
 from . import utils as vbu
 
 
-class OwnerOnly(vbu.Cog[vbu.Bot], command_attrs={'hidden': False, 'add_slash_command': False}):
+def is_sudo_enabled():
+    """Deny the command if sudo mechanic is not enabled."""
+
+    async def predicate(ctx):
+        return ctx.bot._sudo_ctx_var is not None
+
+    return commands.check(predicate)
+
+
+async def timed_unsu(user_id: int, bot: vbu.Bot):
+    await asyncio.sleep(delay=bot.config.get("sudo_timeout", 15 * 60))
+    bot._elevated_owner_ids -= {user_id}
+    bot._owner_sudo_tasks.pop(user_id, None)
+
+
+def is_true_owner():
+    """Check if user is in bot.config"""
+
+    async def predicate(ctx):
+        return (
+            ctx.bot._sudo_ctx_var is not None
+            and not ctx.author.bot
+            and ctx.author.id in ctx.bot.config["owners"]
+        )
+
+    return commands.check(predicate)
+
+
+class OwnerOnly(vbu.Cog, command_attrs={"hidden": False, "add_slash_command": False}):
     """
     Handles commands that only the owner should be able to run.
     """
@@ -365,6 +393,64 @@ class OwnerOnly(vbu.Cog[vbu.Bot], command_attrs={'hidden': False, 'add_slash_com
                 return await ctx.send("I don't have permission to attach files here.")
         else:
             return await ctx.send(text)
+
+    @vbu.group(aliases=["bl"])
+    @commands.is_owner()
+    async def blacklist(self, ctx: vbu.Context):
+        """
+        Manages the user blacklist.
+        """
+
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help(ctx.command)
+
+    @blacklist.command(name="add")
+    async def blacklist_add(
+        self,
+        ctx: vbu.Context,
+        user: typing.Union[discord.User, int],
+        *,
+        reason: str = "Blacklisted w/o reason.",
+    ):
+        """Add a user to the blacklist."""
+        if isinstance(user, discord.User):
+            user = user.id
+        if self.bot.blacklisted_users.get(int(user)) != None:
+            return await ctx.send(
+                "That user is already blacklisted for: `{}`".format(
+                    self.bot.blacklisted_users.get(int(user))
+                )
+            )
+        self.bot.blacklisted_users[int(user)] = reason
+        async with vbu.Database() as db:
+            await db(
+                "INSERT INTO blacklisted_users (user_id, reason) VALUES ($1, $2)",
+                int(user),
+                reason,
+            )
+        await vbu.embeddify(ctx, "User has been blacklisted.")
+
+    @blacklist.command(name="remove")
+    async def blacklist_remove(self, ctx: vbu.Context, user: typing.Union[discord.User, int]):
+        """Remove a user from the blacklist."""
+        if isinstance(user, discord.User):
+            user = user.id
+        if self.bot.blacklisted_users.get(int(user)) == None:
+            return await vbu.embeddify(ctx, "That user is not blacklisted.")
+        self.bot.blacklisted_users.pop(int(user))
+        async with vbu.Database() as db:
+            await db("DELETE FROM blacklisted_users WHERE user_id = $1", int(user))
+        await vbu.embeddify(ctx, "User has been removed from the blacklist.")
+
+    @blacklist.command(name="list")
+    async def blacklist_list(self, ctx: vbu.Context):
+        """List all users on the blacklist."""
+        if len(self.bot.blacklisted_users) == 0:
+            return await vbu.embeddify(ctx, "There are no blacklisted users.")
+        msg = ""
+        for user in self.bot.blacklisted_users:
+            msg += f" - {self.bot.get_user(user)} ({user}): `{self.bot.blacklisted_users.get(user)}`\n"
+        await vbu.embeddify(ctx, msg)
 
     @vbu.command(aliases=['rld', 'rl'])
     @commands.is_owner()
@@ -819,6 +905,49 @@ class OwnerOnly(vbu.Cog[vbu.Bot], command_attrs={'hidden': False, 'add_slash_com
             os.remove(filename)
         else:
             return
+
+    @commands.command(name="unsu")
+    @is_sudo_enabled()
+    @is_true_owner()
+    async def unsu(self, ctx: vbu.Context):
+        """Disable your bot owner privileges."""
+        if ctx.author.id in self.bot.owner_ids:
+            self.bot._elevated_owner_ids -= {ctx.author.id}
+            await ctx.send("Your bot owner privileges have been disabled.")
+            return
+        await ctx.send("Your bot owner privileges are not currently enabled.")
+
+    @commands.command(name="sudo")
+    @is_sudo_enabled()
+    @is_true_owner()
+    async def sudo(self, ctx: vbu.Context, *, command: str):
+        """Runs the specified command with bot owner permissions
+        The prefix must not be entered.
+        """
+        ids = self.bot._elevated_owner_ids.union({ctx.author.id})
+        self.bot._sudo_ctx_var.set(ids)
+        msg = copy.copy(ctx.message)
+        msg.content = ctx.prefix + command
+        ctx.bot.dispatch("message", msg)
+
+    @commands.command(name="su")
+    @is_sudo_enabled()
+    @is_true_owner()
+    async def su(self, ctx: vbu.Context):
+        """Enable your bot owner privileges.
+        SU permission is auto removed after interval set with `[p]set sutimeout` (Default to 15 minutes).
+        """
+        if ctx.author.id not in self.bot.owner_ids:
+            self.bot._elevated_owner_ids |= {ctx.author.id}
+            await ctx.send("Your bot owner privileges have been enabled.")
+            if ctx.author.id in self.bot._owner_sudo_tasks:
+                self.bot._owner_sudo_tasks[ctx.author.id].cancel()
+                del self.bot._owner_sudo_tasks[ctx.author.id]
+            self.bot._owner_sudo_tasks[ctx.author.id] = asyncio.create_task(
+                timed_unsu(ctx.author.id, self.bot)
+            )
+            return
+        await ctx.send("Your bot owner privileges are already enabled.")
 
 
 def setup(bot: vbu.Bot):

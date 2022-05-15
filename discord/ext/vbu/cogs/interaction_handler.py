@@ -17,6 +17,11 @@ class InteractionHandler(vbu.Cog, command_attrs={'hidden': False, 'add_slash_com
         ctx = await self.bot.get_slash_context(interaction=interaction)
         ctx.invoked_with = command_name
         ctx.command = command
+        if self.bot.blacklisted_users.get(int(interaction.user.id), None) is not None:
+            await ctx.interaction.response.send_message(
+                "You are blacklisted from using this bot.", ephemeral=True
+            )
+            return
         await self.bot.invoke(ctx)
 
     @vbu.command(aliases=['addslashcommands', 'addslashcommand', 'addapplicationcommand'])
@@ -47,7 +52,7 @@ class InteractionHandler(vbu.Cog, command_attrs={'hidden': False, 'add_slash_com
 
         guild = guild_id if guild_id is None else discord.Object(guild_id)
         await self.bot.register_application_commands(commands=None, guild=guild)
-        await ctx.send("Removed slash commands.")
+        await vbu.embeddify(ctx, "Removed slash commands.")
 
 
 def setup(bot: vbu.Bot):

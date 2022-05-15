@@ -246,6 +246,17 @@ class Bot(MinimalBot):
         self.config_file = config_file
         self.logger = logger or logging.getLogger('bot')
         self.reload_config()
+        self._sudo_ctx_var: typing.Optional[ContextVar] = None
+
+        if self.config.get("sudo_enabled", False) is True:
+            self._sudo_ctx_var = ContextVar("SudoOwners")
+
+        # These are IDs of ALL owners, whether they currently have elevated privileges or not
+        self._all_owner_ids: typing.FrozenSet[int] = frozenset()
+        # These are IDs of the owners, that currently have their privileges elevated globally.
+        # If sudo functionality is not enabled, this will remain empty throughout bot's lifetime.
+        self._elevated_owner_ids: typing.FrozenSet[int] = frozenset()
+        self._all_owner_ids = frozenset(self.config["owners"])
 
         # Let's work out our intents
         if not intents:
@@ -267,14 +278,14 @@ class Bot(MinimalBot):
         self.DEFAULT_GUILD_SETTINGS = {
             self.config.get('guild_settings_prefix_column', 'prefix'): self.config['default_prefix'],
         }
-        self.DEFAULT_USER_SETTINGS = {
-        }
-
+        self.DEFAULT_USER_SETTINGS = {}
+        self.DEFAULT_BLACKLISTED_USERS = {}
         # Aiohttp session
         self.session: aiohttp.ClientSession = AnalyticsClientSession(
             self, loop=self.loop,
             headers={"User-Agent": self.user_agent},
         )
+        self._owner_sudo_tasks: typing.Dict[int, asyncio.Task] = {}
 
         # Allow database connections like this
         self.database: typing.Type[DatabaseWrapper] = DatabaseWrapper
@@ -306,8 +317,15 @@ class Bot(MinimalBot):
         logging.getLogger('discord.webhook.sync').addHandler(handler)
 
         # Here's the storage for cached stuff
-        self.guild_settings = collections.defaultdict(lambda: copy.deepcopy(self.DEFAULT_GUILD_SETTINGS))
-        self.user_settings = collections.defaultdict(lambda: copy.deepcopy(self.DEFAULT_USER_SETTINGS))
+        self.guild_settings = collections.defaultdict(
+            lambda: copy.deepcopy(self.DEFAULT_GUILD_SETTINGS)
+        )
+        self.user_settings = collections.defaultdict(
+            lambda: copy.deepcopy(self.DEFAULT_USER_SETTINGS)
+        )
+        self.blacklisted_users = collections.defaultdict(
+            lambda: copy.deepcopy(self.DEFAULT_BLACKLISTED_USERS)
+        )
 
     async def startup(self):
         """
@@ -362,6 +380,10 @@ class Bot(MinimalBot):
         for row in data:
             for key, value in row.items():
                 self.user_settings[row['user_id']][key] = value
+        # Get default blacklisted users
+        default_blacklisted_users = await db("SELECT * FROM blacklisted_users")
+        for row in default_blacklisted_users:
+            self.blacklisted_users[int(row["user_id"])] = row["reason"]
 
         # Run the user-added startup methods
         async def fake_cache_setup_method(db):
@@ -415,6 +437,39 @@ class Bot(MinimalBot):
             return self.get_guild(self.config['support_guild_id']) or await self.fetch_guild(self.config['support_guild_id'])
         except Exception:
             return None
+
+    @property
+    def all_owner_ids(self) -> typing.FrozenSet[int]:
+        """
+        IDs of ALL owners regardless of their elevation status.
+        If you're doing privilege checks, use `owner_ids` instead.
+        This attribute is meant to be used for things
+        that actually need to get a full list of owners for informational purposes.
+        Example
+        -------
+        `send_to_owners()` uses this property to be able to send message to
+        all bot owners, not just the ones that are currently using elevated permissions.
+        """
+        return self._all_owner_ids
+
+    @property
+    def owner_ids(self) -> typing.FrozenSet[int]:
+        """
+        IDs of owners that are elevated in current context.
+        You should NEVER try to set to this attribute.
+        This should be used for any privilege checks.
+        If sudo functionality is disabled, this will be equivalent to `all_owner_ids`.
+        """
+        if self._sudo_ctx_var is None:
+            return self._all_owner_ids
+        return self._sudo_ctx_var.get(self._elevated_owner_ids)
+
+    @owner_ids.setter
+    def owner_ids(self, value) -> typing.NoReturn:
+        # this `if` is needed so that d.py's __init__ can "set" to `owner_ids` successfully
+        if self._sudo_ctx_var is None and self._all_owner_ids is value:
+            return  # type: ignore[misc]
+        # raise AttributeError("can't set attribute"
 
     def get_invite_link(
             self,
@@ -503,6 +558,36 @@ class Bot(MinimalBot):
             session=self.session,
         )
         return self._upgrade_chat
+
+    async def is_owner(self, user: discord.User) -> bool:
+        """|coro|
+        Checks if a :class:`~discord.User` or :class:`~discord.Member` is the owner of
+        this bot.
+        If an :attr:`owner_id` is not set, it is fetched automatically
+        through the use of :meth:`~.Bot.application_info`.
+        Parameters
+        -----------
+        user: :class:`.abc.User`
+            The user to check for.
+        Returns
+        --------
+        :class:`bool`
+            Whether the user is the owner.
+        """
+
+        if self.owner_id:
+            return user.id == self.owner_id
+        else:
+            if self._sudo_ctx_var is None:
+                app = await self.application_info()  # type: ignore
+                if app.team:
+                    self.owner_ids = ids = {m.id for m in app.team.members}
+                    return user.id in ids
+                else:
+                    self.owner_id = owner_id = app.owner.id
+                    return user.id == owner_id
+            else:
+                return user.id in self.owner_ids
 
     async def get_user_topgg_vote(self, user_id: int) -> bool:
         """
@@ -708,14 +793,6 @@ class Bot(MinimalBot):
         return v[0]
 
     @property
-    def owner_ids(self) -> list:
-        return self.config['owners']
-
-    @owner_ids.setter
-    def owner_ids(self, _):
-        pass
-
-    @property
     def embeddify(self) -> bool:
         try:
             return self.config['embed']['enabled']
@@ -874,6 +951,58 @@ class Bot(MinimalBot):
         self.logger.info("Setting activity to default")
         await self.set_default_presence()
         self.logger.info('Bot loaded.')
+
+    async def process_slash_commands(self, interaction: discord.Interaction) -> None:
+        """|coro|
+        This function processes the commands that have been registered
+        to the bot and other groups. Without this coroutine, none of the
+        slash commands will be triggered.
+        By default, this coroutine is called inside the :func:`.on_slash_command`
+        event. If you choose to override the :func:`.on_slash_command` event, then
+        you should invoke this coroutine as well.
+        This is built using other low level tools, and is equivalent to a
+        call to :meth:`~.Bot.get_slash_context` followed by a call to :meth:`~.Bot.invoke`.
+        Parameters
+        -----------
+        interaction: :class:`discord.Interaction`
+            The message to process commands for.
+        """
+        ctx = await self.get_slash_context(interaction)
+        if self.blacklisted_users.get(int(ctx.author.id), None) is not None:
+            self.logger.info(f"User {ctx.author} ({ctx.author.id}) is blacklisted")
+            await ctx.interaction.response.send_message(
+                "You are blacklisted from using this bot.", ephemeral=True
+            )
+            return
+        await self.invoke(ctx)
+
+    async def process_commands(self, message: discord.Message):
+        """
+        Same as base method, but dispatches an additional event for cogs
+        which want to handle normal messages differently to command
+        messages,  without the overhead of additional get_context calls
+        per cog.
+        """
+        if self._sudo_ctx_var is not None:
+            # we need to ensure that ctx var is set to actual value
+            # rather than rely on the default that can change at any moment
+            token = self._sudo_ctx_var.set(self.owner_ids)
+
+        try:
+            if not message.author.bot:
+                if self.blacklisted_users.get(int(message.author.id), None) is not None:
+                    self.logger.info(f"User {message.author} ({message.author.id}) is blacklisted")
+                    return
+                ctx = await self.get_context(message)
+                await self.invoke(ctx)
+            else:
+                ctx = None
+
+            if ctx is None or ctx.valid is False:
+                self.dispatch("message_without_command", message)
+        finally:
+            if self._sudo_ctx_var is not None:
+                self._sudo_ctx_var.reset(token)
 
     async def launch_shard(self, gateway, shard_id: int, *, initial: bool = False):
         """
