@@ -14,7 +14,6 @@ import importlib
 import discord
 from discord.ext import commands
 
-from discord.types.member import PartialMember
 from discord.types.user import PartialUser
 
 from . import utils as vbu
@@ -133,7 +132,7 @@ class OwnerOnly(vbu.Cog, command_attrs={"hidden": False, "add_slash_command": Fa
 
         if not content:
             raise vbu.errors.MissingRequiredArgumentString("content")
-        async with self.bot.redis() as re:
+        async with vbu.Redis() as re:
             await re.publish("RunRedisEval", {
                 'channel_id': ctx.channel.id,
                 'message_id': ctx.message.id,
@@ -154,7 +153,7 @@ class OwnerOnly(vbu.Cog, command_attrs={"hidden": False, "add_slash_command": Fa
 
         if not content:
             raise vbu.errors.MissingRequiredArgumentString("content")
-        async with self.bot.redis() as re:
+        async with vbu.Redis() as re:
             await re.publish("RunRedisEval", {
                 'channel_id': ctx.channel.id,
                 'message_id': ctx.message.id,
@@ -177,7 +176,10 @@ class OwnerOnly(vbu.Cog, command_attrs={"hidden": False, "add_slash_command": Fa
             raise vbu.errors.MissingRequiredArgumentString("command_name")
         command = self.bot.get_command(command_name)
         if command is None:
-            return await ctx.send(f"I couldn't find a command named `{command_name}`.", allowed_mentions=discord.AllowedMentions.none())
+            return await ctx.send(
+                f"I couldn't find a command named `{command_name}`.",
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
 
         # Get its source
         data = textwrap.dedent(inspect.getsource(command.callback))
@@ -197,6 +199,18 @@ class OwnerOnly(vbu.Cog, command_attrs={"hidden": False, "add_slash_command": Fa
 
         # Paginate
         await vbu.Paginator(pages, per_page=1).start(ctx)
+
+    @vbu.command()
+    @commands.is_owner()
+    @commands.bot_has_permissions()
+    async def shard(self, ctx: vbu.Context, guild_id: int = 0):
+        """
+        Tells you the shard ID for a given guild.
+        """
+
+        guild_id = guild_id or ctx.guild.id
+        shard_id = (guild_id >> 22) % (self.bot.shard_count or 1)
+        await ctx.send(str(shard_id))
 
     @vbu.command(aliases=['pm', 'dm', 'send'])
     @commands.is_owner()
