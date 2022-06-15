@@ -27,6 +27,17 @@ CREATE TABLE IF NOT EXISTS blacklisted_users(
 -- This table is not suitable for guild only blacklist as there's no
 -- guild ID specified.
 
+CREATE TABLE IF NOT EXISTS command_settings(
+    guild_id BIGINT,
+    command TEXT,
+    enabled BIGINT,
+    PRIMARY KEY(guild_id, command)
+);
+-- A table of command settings.
+-- This is required for VBU and should not be deleted.
+-- You can add more columns to this table should you want to add more guild-specific
+-- settings.
+
 -- CREATE TABLE IF NOT EXISTS role_list(
 --     guild_id BIGINT,
 --     role_id BIGINT,

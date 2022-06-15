@@ -31,7 +31,7 @@ from .embeddify import Embeddify
 from .. import all_packages as all_vfl_package_names
 
 if typing.TYPE_CHECKING:
-    from .types.config import BotConfig
+    from .types.config import BotConfig # type: ignore
 
 
 sys.path.append(".")
@@ -248,7 +248,7 @@ class Bot(MinimalBot):
         self.reload_config()
         self._sudo_ctx_var: typing.Optional[ContextVar] = None
 
-        if self.config.get("sudo_enabled", False) is True:
+        if self.config.get("sudo_enabled", False) != False:
             self._sudo_ctx_var = ContextVar("SudoOwners")
 
         # These are IDs of ALL owners, whether they currently have elevated privileges or not
@@ -280,6 +280,7 @@ class Bot(MinimalBot):
         }
         self.DEFAULT_USER_SETTINGS = {}
         self.DEFAULT_BLACKLISTED_USERS = {}
+        self.DEFAULT_DISABLED_COMMANDS_GUILD = {}
         # Aiohttp session
         self.session: aiohttp.ClientSession = AnalyticsClientSession(
             self, loop=self.loop,
@@ -325,6 +326,9 @@ class Bot(MinimalBot):
         )
         self.blacklisted_users = collections.defaultdict(
             lambda: copy.deepcopy(self.DEFAULT_BLACKLISTED_USERS)
+        )
+        self.default_guild_disabled_commands = collections.defaultdict(
+            lambda: copy.deepcopy(self.DEFAULT_DISABLED_COMMANDS_GUILD)
         )
 
     async def startup(self):
@@ -384,6 +388,11 @@ class Bot(MinimalBot):
         default_blacklisted_users = await db("SELECT * FROM blacklisted_users")
         for row in default_blacklisted_users:
             self.blacklisted_users[int(row["user_id"])] = row["reason"]
+
+        # Get guild specific blacklisted commands.
+        default_guild_disabled_commands = await db("SELECT * FROM command_settings")
+        for row in default_guild_disabled_commands:
+            self.default_guild_disabled_commands[int(row["guild_id"])][(row["command"])] = bool(row["enabled"])
 
         # Run the user-added startup methods
         async def fake_cache_setup_method(db):
@@ -983,7 +992,54 @@ class Bot(MinimalBot):
                 "You are blacklisted from using this bot.", ephemeral=True
             )
             return
+        if await self.handle_disabled_slash_commands(interaction):
+            self.logger.info(f"Slash command {ctx.command} is disabled in guild {ctx.guild}")
+            await ctx.interaction.response.send_message(
+                f"This command is disabled in {ctx.guild.name}", ephemeral=True
+            )
+            return
         await self.invoke(ctx)
+
+    async def handle_disabled_slash_commands(self, interaction: discord.Interaction) -> bool:
+        """Handles guild specific disabled commands."""
+        ctx = await self.get_slash_context(interaction)
+        if ctx.command is None:
+            return False
+        command = ctx.command.name
+        if ctx.guild is None:
+            return False
+        if self.default_guild_disabled_commands.get(ctx.guild.id, None) is None:
+            return False
+        if hasattr(ctx.command, "parent"):
+            command = (
+                ctx.command.parent.name if ctx.command.parent is not None else ctx.command.name
+            )
+        try:
+            disabled = self.default_guild_disabled_commands[ctx.guild.id][command.lower()]
+        except KeyError:
+            return False
+        if disabled is not None:
+            return True
+        return False
+
+    async def handle_disabled_guild_message_commands(self, ctx: Context) -> bool:
+        """Handles guild specific disabled commands."""
+        if ctx.command is None:
+            return False
+        command = ctx.command.name
+        if ctx.guild is None:
+            return False
+        if self.default_guild_disabled_commands.get(ctx.guild.id, None) is None:
+            return False
+        if hasattr(ctx.command, "parent"):
+            command = ctx.command.parent if ctx.command.parent is not None else ctx.command.name
+        try:
+            disabled = self.default_guild_disabled_commands[ctx.guild.id][command.lower()]
+        except KeyError:
+            return False
+        if disabled is not None:
+            return True
+        return False
 
     async def process_commands(self, message: discord.Message):
         """
@@ -1003,6 +1059,9 @@ class Bot(MinimalBot):
                     self.logger.info(f"User {message.author} ({message.author.id}) is blacklisted")
                     return
                 ctx = await self.get_context(message)
+                if await self.handle_disabled_guild_message_commands(ctx):
+                    self.logger.info(f"{ctx.command.name} is disabled in {ctx.guild}")
+                    return
                 await self.invoke(ctx)
             else:
                 ctx = None
