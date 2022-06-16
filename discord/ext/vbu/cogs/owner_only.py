@@ -623,7 +623,8 @@ class OwnerOnly(vbu.Cog, command_attrs={"hidden": False, "add_slash_command": Fa
         A parent command for the bot user configuration section.
         """
 
-        pass
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help(ctx.command)
 
     @botuser.command(name='name', aliases=['username'])
     @commands.is_owner()
@@ -670,6 +671,7 @@ class OwnerOnly(vbu.Cog, command_attrs={"hidden": False, "add_slash_command": Fa
         else:
             return await self.bot.set_default_presence()
         await self.bot.change_presence(activity=activity, status=self.bot.guilds[0].me.status)
+        await ctx.tick()
 
     @botuser.command(name='status')
     @commands.is_owner()
@@ -681,31 +683,7 @@ class OwnerOnly(vbu.Cog, command_attrs={"hidden": False, "add_slash_command": Fa
 
         status = getattr(discord.Status, status.lower())
         await self.bot.change_presence(activity=self.bot.guilds[0].me.activity, status=status)
-
-    @vbu.command(aliases=['sudo'])
-    @commands.is_owner()
-    @commands.bot_has_permissions(send_messages=True)
-    async def su(self, ctx, who: discord.User, *, command: str):
-        """
-        Run a command as another user.
-        """
-
-        # Make a copy of the message so we can pretend the other user said it
-        msg = copy.copy(ctx.message)
-
-        # Change the author and content
-        try:
-            msg.author = ctx.guild.get_member(who.id) or await ctx.guild.fetch_member(who.id) or who
-        except discord.HTTPException:
-            msg.author = who
-        msg.content = ctx.prefix + command
-
-        # Make a context
-        new_ctx = await self.bot.get_context(msg, cls=type(ctx))
-        new_ctx.original_author_id = ctx.author.id
-
-        # Invoke it dab
-        await self.bot.invoke(new_ctx)
+        await ctx.tick()
 
     @vbu.command(aliases=['sh'])
     @commands.is_owner()
@@ -938,6 +916,8 @@ class OwnerOnly(vbu.Cog, command_attrs={"hidden": False, "add_slash_command": Fa
         """Runs the specified command with bot owner permissions
         The prefix must not be entered.
         """
+        if self.bot._sudo_ctx_var is None:
+            return
         ids = self.bot._elevated_owner_ids.union({ctx.author.id})
         self.bot._sudo_ctx_var.set(ids)
         msg = copy.copy(ctx.message)
@@ -951,6 +931,8 @@ class OwnerOnly(vbu.Cog, command_attrs={"hidden": False, "add_slash_command": Fa
         """Enable your bot owner privileges.
         SU permission is auto removed after interval set with `[p]set sutimeout` (Default to 15 minutes).
         """
+        if self.bot._sudo_ctx_var is None:
+            return
         if ctx.author.id not in self.bot.owner_ids:
             self.bot._elevated_owner_ids |= {ctx.author.id}
             await ctx.send("Your bot owner privileges have been enabled.")
