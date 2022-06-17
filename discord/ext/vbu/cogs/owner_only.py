@@ -671,7 +671,7 @@ class OwnerOnly(vbu.Cog, command_attrs={"hidden": False, "add_slash_command": Fa
         else:
             return await self.bot.set_default_presence()
         await self.bot.change_presence(activity=activity, status=self.bot.guilds[0].me.status)
-        await ctx.tick()
+        await ctx.okay()
 
     @botuser.command(name='status')
     @commands.is_owner()
@@ -683,7 +683,7 @@ class OwnerOnly(vbu.Cog, command_attrs={"hidden": False, "add_slash_command": Fa
 
         status = getattr(discord.Status, status.lower())
         await self.bot.change_presence(activity=self.bot.guilds[0].me.activity, status=status)
-        await ctx.tick()
+        await ctx.okay()
 
     @vbu.command(aliases=['sh'])
     @commands.is_owner()
