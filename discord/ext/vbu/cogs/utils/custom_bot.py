@@ -344,8 +344,8 @@ class Bot(MinimalBot):
             self.logger.error(e, exc_info=True)
             exit(1)
     
-    async def setup_hook(self):
-        await self.load_all_extensions()
+    # async def setup_hook(self):
+    #     await self.load_all_extensions()
 
     async def _startup(self):
         """
@@ -921,7 +921,7 @@ class Bot(MinimalBot):
                 headers = {i: o for i, o in dict(e.response.headers).items() if "rate" in i.lower()}
                 self.logger.critical(f"Cloudflare rate limit reached - {json.dumps(headers)}")
             raise
-        await self.setup_hook()
+        # await self.setup_hook()
 
     async def start(self, token: str = None, *args, **kwargs):
         """:meta private:"""
