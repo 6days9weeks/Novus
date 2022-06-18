@@ -343,10 +343,6 @@ class Bot(MinimalBot):
         except Exception as e:
             self.logger.error(e, exc_info=True)
             exit(1)
-    
-    async def setup_hook(self):
-        self.logger.info("Loading extensions...")
-        await self.load_all_extensions()
 
     async def _startup(self):
         """
@@ -837,7 +833,7 @@ class Bot(MinimalBot):
         self.logger.debug("Getting all extensions: " + str(extensions))
         return extensions
 
-    async def load_all_extensions(self) -> None:
+    def load_all_extensions(self) -> None:
         """
         Loads all the given extensions from :func:`voxelbotutils.Bot.get_extensions`.
         """
@@ -846,7 +842,7 @@ class Bot(MinimalBot):
         self.logger.info('Unloading extensions... ')
         for i in self.get_extensions():
             try:
-                await self.unload_extension(i)
+                self.unload_extension(i)
             except Exception as e:
                 self.logger.debug(f' * {i}... failed - {e!s}')
             else:
@@ -856,7 +852,7 @@ class Bot(MinimalBot):
         self.logger.info('Loading extensions... ')
         for i in self.get_extensions():
             try:
-                await self.load_extension(i)
+                self.load_extension(i)
             except Exception as e:
                 self.logger.critical(f' * {i}... failed - {e!s}')
                 raise e
@@ -922,7 +918,6 @@ class Bot(MinimalBot):
                 headers = {i: o for i, o in dict(e.response.headers).items() if "rate" in i.lower()}
                 self.logger.critical(f"Cloudflare rate limit reached - {json.dumps(headers)}")
             raise
-        await self.setup_hook()
 
     async def start(self, token: str = None, *args, **kwargs):
         """:meta private:"""
