@@ -63,11 +63,9 @@ import config
 class Bot(commands.{base}):
     def __init__(self, **kwargs):
         super().__init__(command_prefix=commands.when_mentioned_or('{prefix}'), **kwargs)
-
-    async def setup_hook(self):
         for cog in config.cogs:
             try:
-                await self.load_extension(cog)
+                self.load_extension(cog)
             except Exception as exc:
                 print(f'Could not load extension {{cog}} due to {{exc.__class__.__name__}}: {{exc}}')
 
@@ -133,17 +131,13 @@ class {name}({commands_ext}.Cog{attrs}):
     def __init__(self, bot: {commands_ext}.Bot):
         self.bot = bot
 {extra}
-async def setup(bot: {commands_ext}.Bot):
-     x = {name}(bot)
-    await bot.add_cog(x)
+def setup(bot: {commands_ext}.Bot):
+    x = {name}(bot)
+    bot.add_cog(x)
 '''
 
 _cog_extras = '''
-    async def cog_load(self):
-        # loading logic goes here
-        pass
-
-    async def cog_unload(self):
+    def cog_unload(self):
         # clean up logic goes here
         pass
 

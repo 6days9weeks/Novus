@@ -70,7 +70,7 @@ MISSING: Any = discord.utils.MISSING
 T = TypeVar('T')
 CFT = TypeVar('CFT', bound='CoroFunc')
 CXT = TypeVar('CXT', bound='Context')
-SCXT = TypeVar('CXT', bound='SlashContext') # type: ignore
+SCXT = TypeVar('CXT', bound='SlashContext')
 
 def when_mentioned(bot: Union[Bot, AutoShardedBot], msg: Message) -> List[str]:
     """A callable that implements a command prefix equivalent to being mentioned.
@@ -166,13 +166,13 @@ class BotBase(GroupMixin):
     async def close(self) -> None:
         for extension in tuple(self.__extensions):
             try:
-                await self.unload_extension(extension)
+                self.unload_extension(extension)
             except Exception:
                 pass
 
         for cog in tuple(self.__cogs):
             try:
-                await self.remove_cog(cog)
+                self.remove_cog(cog)
             except Exception:
                 pass
 
@@ -512,19 +512,10 @@ class BotBase(GroupMixin):
 
     # cogs
 
-    async def add_cog(
-        self,
-        cog: Cog,
-        *,
-        override: bool = False,
-    ) -> None:
-        """|coro|
-
-        Adds a "cog" to the bot.
+    def add_cog(self, cog: Cog, *, override: bool = False) -> None:
+        """Adds a "cog" to the bot.
 
         A cog is a class that has its own event listeners and commands.
-
-        This method is a :term:`coroutine`.
 
         Parameters
         -----------
@@ -553,9 +544,9 @@ class BotBase(GroupMixin):
         if existing is not None:
             if not override:
                 raise discord.ClientException(f'Cog named {cog_name!r} already loaded')
-            await self.remove_cog(cog_name)
+            self.remove_cog(cog_name)
 
-        cog = await cog._inject(self)
+        cog = cog._inject(self)
         self.__cogs[cog_name] = cog
 
     def get_cog(self, name: str) -> Optional[Cog]:
@@ -577,20 +568,13 @@ class BotBase(GroupMixin):
         """
         return self.__cogs.get(name)
 
-    async def remove_cog(
-        self,
-        name: str
-    ) -> Optional[Cog]:
-        """|coro|
-
-        Removes a cog from the bot and returns it.
+    def remove_cog(self, name: str) -> Optional[Cog]:
+        """Removes a cog from the bot and returns it.
 
         All registered commands and event listeners that the
         cog has registered will be removed as well.
 
         If no cog is found then this method has no effect.
-
-        This method is a :term:`coroutine`.
 
         Parameters
         -----------
@@ -610,8 +594,7 @@ class BotBase(GroupMixin):
         help_command = self._help_command
         if help_command and help_command.cog is cog:
             help_command.cog = None
-
-        await cog._eject(self)
+        cog._eject(self)
 
         return cog
 
@@ -622,12 +605,12 @@ class BotBase(GroupMixin):
 
     # extensions
 
-    async def _remove_module_references(self, name: str) -> None:
+    def _remove_module_references(self, name: str) -> None:
         # find all references to the module
         # remove the cogs registered from the module
         for cogname, cog in self.__cogs.copy().items():
             if _is_submodule(name, cog.__module__):
-                await self.remove_cog(cogname)
+                self.remove_cog(cogname)
 
         # remove all the commands from the module
         for cmd in self.all_commands.copy().values():
@@ -646,14 +629,14 @@ class BotBase(GroupMixin):
             for index in reversed(remove):
                 del event_list[index]
 
-    async def _call_module_finalizers(self, lib: types.ModuleType, key: str) -> None:
+    def _call_module_finalizers(self, lib: types.ModuleType, key: str) -> None:
         try:
             func = getattr(lib, 'teardown')
         except AttributeError:
             pass
         else:
             try:
-                await func(self)
+                func(self)
             except Exception:
                 pass
         finally:
@@ -664,7 +647,7 @@ class BotBase(GroupMixin):
                 if _is_submodule(name, module):
                     del sys.modules[module]
 
-    async def _load_from_module_spec(self, spec: importlib.machinery.ModuleSpec, key: str) -> None:
+    def _load_from_module_spec(self, spec: importlib.machinery.ModuleSpec, key: str) -> None:
         # precondition: key not in self.__extensions
         lib = importlib.util.module_from_spec(spec)
         sys.modules[key] = lib
@@ -681,11 +664,11 @@ class BotBase(GroupMixin):
             raise errors.NoEntryPointError(key)
 
         try:
-            await setup(self)
+            setup(self)
         except Exception as e:
             del sys.modules[key]
-            await self._remove_module_references(lib.__name__)
-            await self._call_module_finalizers(lib, key)
+            self._remove_module_references(lib.__name__)
+            self._call_module_finalizers(lib, key)
             raise errors.ExtensionFailed(key, e) from e
         else:
             self.__extensions[key] = lib
@@ -696,10 +679,8 @@ class BotBase(GroupMixin):
         except ImportError:
             raise errors.ExtensionNotFound(name)
 
-    async def load_extension(self, name: str, *, package: Optional[str] = None) -> None:
-        """|coro|
-
-        Loads an extension.
+    def load_extension(self, name: str, *, package: Optional[str] = None) -> None:
+        """Loads an extension.
 
         An extension is a python module that contains commands, cogs, or
         listeners.
@@ -707,10 +688,6 @@ class BotBase(GroupMixin):
         An extension must have a global function, ``setup`` defined as
         the entry point on what to do when the extension is loaded. This entry
         point must have a single argument, the ``bot``.
-
-        .. versionchanged:: 2.0
-
-            This method is now a :term:`coroutine`.
 
         Parameters
         ------------
@@ -745,12 +722,10 @@ class BotBase(GroupMixin):
         if spec is None:
             raise errors.ExtensionNotFound(name)
 
-        await self._load_from_module_spec(spec, name)
+        self._load_from_module_spec(spec, name)
 
-    async def unload_extension(self, name: str, *, package: Optional[str] = None) -> None:
-        """|coro|
-
-        Unloads an extension.
+    def unload_extension(self, name: str, *, package: Optional[str] = None) -> None:
+        """Unloads an extension.
 
         When the extension is unloaded, all commands, listeners, and cogs are
         removed from the bot and the module is un-imported.
@@ -759,10 +734,6 @@ class BotBase(GroupMixin):
         to do miscellaneous clean-up if necessary. This function takes a single
         parameter, the ``bot``, similar to ``setup`` from
         :meth:`~.Bot.load_extension`.
-
-        .. versionchanged:: 2.0
-
-            This method is now a :term:`coroutine`.
 
         Parameters
         ------------
@@ -789,10 +760,10 @@ class BotBase(GroupMixin):
         if lib is None:
             raise errors.ExtensionNotLoaded(name)
 
-        await self._remove_module_references(lib.__name__)
-        await self._call_module_finalizers(lib, name)
+        self._remove_module_references(lib.__name__)
+        self._call_module_finalizers(lib, name)
 
-    async def reload_extension(self, name: str, *, package: Optional[str] = None) -> None:
+    def reload_extension(self, name: str, *, package: Optional[str] = None) -> None:
         """Atomically reloads an extension.
 
         This replaces the extension with the same extension, only refreshed. This is
@@ -839,14 +810,14 @@ class BotBase(GroupMixin):
 
         try:
             # Unload and then load the module...
-            await self._remove_module_references(lib.__name__)
-            await self._call_module_finalizers(lib, name)
-            await self.load_extension(name)
+            self._remove_module_references(lib.__name__)
+            self._call_module_finalizers(lib, name)
+            self.load_extension(name)
         except Exception:
             # if the load failed, the remnants should have been
             # cleaned from the load_extension function call
             # so let's load it from our old compiled library.
-            await lib.setup(self)  # type: ignore
+            lib.setup(self)  # type: ignore
             self.__extensions[name] = lib
 
             # revert sys.modules back to normal and raise back to caller

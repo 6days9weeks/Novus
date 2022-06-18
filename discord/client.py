@@ -460,8 +460,7 @@ class Client:
     async def login(self, token: str) -> None:
         """|coro|
 
-        Logs in the client with the specified credentials and
-        calls the :meth:`setup_hook`.
+        Logs in the client with the specified credentials.
 
 
         Parameters
@@ -484,8 +483,6 @@ class Client:
 
         data = await self.http.static_login(token.strip())
         self._connection.user = ClientUser(state=self._connection, data=data)
-
-        await self.setup_hook()
 
     async def connect(self, *, reconnect: bool = True) -> None:
         """|coro|
@@ -570,17 +567,6 @@ class Client:
                 # If the connection is not RESUME-able then the gateway will invalidate the session.
                 # This is apparently what the official Discord client does.
                 ws_params.update(sequence=self.ws.sequence, resume=True, session=self.ws.session_id)
-
-    async def setup_hook(self) -> None:
-        """|coro|
-        A coroutine to be called to setup the bot, by default this is blank.
-        To perform asynchronous setup after the bot is logged in but before
-        it has connected to the Websocket, overwrite this coroutine.
-        This is only called once, in :meth:`login`, and will be called before
-        any events are dispatched, making it a better solution than doing such
-        setup in the :func:`~discord.on_ready` event.
-        """
-        pass
 
     async def close(self) -> None:
         """|coro|
