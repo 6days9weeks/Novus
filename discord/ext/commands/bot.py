@@ -708,9 +708,7 @@ class BotBase(GroupMixin):
         the entry point on what to do when the extension is loaded. This entry
         point must have a single argument, the ``bot``.
 
-        .. versionchanged:: 2.0
-
-            This method is now a :term:`coroutine`.
+        This method is a :term:`coroutine`.
 
         Parameters
         ------------
@@ -760,9 +758,7 @@ class BotBase(GroupMixin):
         parameter, the ``bot``, similar to ``setup`` from
         :meth:`~.Bot.load_extension`.
 
-        .. versionchanged:: 2.0
-
-            This method is now a :term:`coroutine`.
+        This method is a :term:`coroutine`.
 
         Parameters
         ------------
