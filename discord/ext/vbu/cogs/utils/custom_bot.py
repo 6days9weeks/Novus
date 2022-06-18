@@ -345,7 +345,6 @@ class Bot(MinimalBot):
             exit(1)
     
     async def setup_hook(self):
-        self.logger.info("Loading extensions...")
         await self.load_all_extensions()
 
     async def _startup(self):
