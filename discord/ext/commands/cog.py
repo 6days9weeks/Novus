@@ -344,7 +344,9 @@ class Cog(metaclass=CogMeta):
 
         Subclasses must replace this if they want special unloading behaviour.
 
-        This method can be a :term:`coroutine`.
+        .. versionchanged:: 2.0
+
+            This method can now be a :term:`coroutine`.
         """
         pass
 
@@ -427,7 +429,7 @@ class Cog(metaclass=CogMeta):
         """
         pass
 
-    async def _inject(self: CogT, bot: BotBase) -> CogT:
+    async def _inject(self: CogT, bot: BotBase, override: bool) -> CogT:
         cls = self.__class__
 
         # we'll call this first so that errors can propagate without
