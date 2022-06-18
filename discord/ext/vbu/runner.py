@@ -422,10 +422,6 @@ def run_bot(args: argparse.Namespace) -> None:
         re_connect = start_redis_pool(bot.config)
         loop.run_until_complete(re_connect)
 
-    # Load the bot's extensions
-    logger.info('Loading extensions... ')
-    bot.load_all_extensions()
-
     # Run the bot
     try:
         logger.info("Running bot")
@@ -483,10 +479,6 @@ def run_interactions(args: argparse.Namespace) -> None:
     if bot.config.get('redis', {}).get('enabled', False):
         re_connect = start_redis_pool(bot.config)
         loop.run_until_complete(re_connect)
-
-    # Load the bot's extensions
-    logger.info('Loading extensions... ')
-    bot.load_all_extensions()
 
     # Run the bot
     logger.info("Logging in bot")
@@ -663,7 +655,6 @@ def run_website(args: argparse.Namespace) -> None:
         #     set_default_log_levels(args)
         try:
             loop.run_until_complete(bot.login())
-            bot.load_all_extensions()
         except Exception:
             logger.error(f"Failed to start bot {bot_name}", exc_info=True)
             exit(1)
@@ -760,10 +751,6 @@ def run_shell(args: argparse.Namespace) -> None:
     if bot.config.get('redis', {}).get('enabled', False):
         re_connect = start_redis_pool(bot.config)
         loop.run_until_complete(re_connect)
-
-    # Load the bot's extensions
-    logger.info('Loading extensions... ')
-    bot.load_all_extensions()
 
     # Set up the default env
     import voxelbotutils as vbu
@@ -870,10 +857,6 @@ def run_modify_commands(args: argparse.Namespace) -> None:
     # Set up loggers
     bot.logger = logger.getChild("bot")
     set_default_log_levels(args)
-
-    # Load the bot's extensions
-    logger.info('Loading extensions... ')
-    bot.load_all_extensions()
 
     # Run the bot
     logger.info("Running bot")
