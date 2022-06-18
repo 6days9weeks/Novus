@@ -60,6 +60,6 @@ class CommandEvent(vbu.Cog):
             stats.increment("discord.bot.commands", tags=command_stats_tags)
 
 
-async def setup(bot: vbu.Bot):
+def setup(bot: vbu.Bot):
     x = CommandEvent(bot)
-    await bot.add_cog(x)
+    bot.add_cog(x)

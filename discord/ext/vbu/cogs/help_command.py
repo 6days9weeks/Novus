@@ -34,11 +34,11 @@ class Help(vbu.Cog):
         return await ctx.send_help(*args)
 
 
-async def setup(bot: vbu.Bot):
+def setup(bot: vbu.Bot):
     x = Help(bot)
     if not bot.config['default_prefix']:
         return bot.remove_command("help")
-    await bot.add_cog(x)
+    bot.add_cog(x)
 
 
 def teardown(bot: vbu.Bot):
