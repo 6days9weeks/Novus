@@ -106,6 +106,6 @@ class InteractionHandler(vbu.Cog, command_attrs={'hidden': False, 'add_slash_com
         await vbu.embeddify(ctx, "Removed slash commands.")
 
 
-def setup(bot: vbu.Bot):
+async def setup(bot: vbu.Bot):
     x = InteractionHandler(bot)
-    bot.add_cog(x)
+    await bot.add_cog(x)

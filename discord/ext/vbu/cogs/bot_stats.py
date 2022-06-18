@@ -210,6 +210,6 @@ class BotStats(vbu.Cog):
         await ctx.send(embed=embed)
 
 
-def setup(bot: vbu.Bot):
+async def setup(bot: vbu.Bot):
     x = BotStats(bot)
-    bot.add_cog(x)
+    await bot.add_cog(x)

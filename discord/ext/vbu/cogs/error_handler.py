@@ -406,6 +406,6 @@ class ErrorHandler(vbu.Cog):
             logger.error(line)
 
 
-def setup(bot: vbu.Bot):
+async def setup(bot: vbu.Bot):
     x = ErrorHandler(bot)
-    bot.add_cog(x)
+    await bot.add_cog(x)

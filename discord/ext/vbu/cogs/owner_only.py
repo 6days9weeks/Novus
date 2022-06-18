@@ -946,6 +946,6 @@ class OwnerOnly(vbu.Cog, command_attrs={"hidden": False, "add_slash_command": Fa
         await ctx.send("Your bot owner privileges are already enabled.")
 
 
-def setup(bot: vbu.Bot):
+async def setup(bot: vbu.Bot):
     x = OwnerOnly(bot)
-    bot.add_cog(x)
+    await bot.add_cog(x)
