@@ -31,7 +31,7 @@ from .embeddify import Embeddify
 from .. import all_packages as all_vfl_package_names
 
 if typing.TYPE_CHECKING:
-    from .types.config import BotConfig # type: ignore
+    from .types.bot_config_file import BotConfig
 
 
 sys.path.append(".")
