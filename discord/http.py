@@ -26,7 +26,6 @@ DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import sys
 from typing import (
@@ -83,7 +82,6 @@ if TYPE_CHECKING:
         channel,
         widget,
         threads,
-        voice,
         sticker,
         welcome_screen,
         guild_scheduled_event,

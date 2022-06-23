@@ -28,11 +28,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import signal
-import sys
-import traceback
 from typing import Any, Callable, Coroutine, Dict, Generator, List, Literal, Optional, Sequence, TYPE_CHECKING, Tuple, TypeVar, Union, overload
 
 import aiohttp
+from loguru import logger
 
 from .user import User, ClientUser
 from .invite import Invite
@@ -58,7 +57,6 @@ from .backoff import ExponentialBackoff
 from .webhook import Webhook
 from .iterators import GuildIterator
 from .appinfo import AppInfo
-from .ui.action_row import MessageComponents
 from .stage_instance import StageInstance
 from .threads import Thread
 from .sticker import GuildSticker, StandardSticker, StickerPack, _sticker_factory
@@ -424,8 +422,7 @@ class Client:
         overridden to have a different implementation.
         Check :func:`~discord.on_error` for more details.
         """
-        print(f'Ignoring exception in {event_method}', file=sys.stderr)
-        traceback.print_exc()
+        logger.exception('Ignoring exception in {}' , event_method)
 
     # hooks
 

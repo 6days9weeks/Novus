@@ -26,7 +26,7 @@ DEALINGS IN THE SOFTWARE.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, TYPE_CHECKING, Union, overload
+from typing import List, Optional, TYPE_CHECKING, Union, overload
 from .utils import _get_as_snowflake, get
 from .errors import InvalidArgument
 from .partial_emoji import _EmojiTag

@@ -32,11 +32,11 @@ import collections.abc
 import inspect
 import importlib.util
 import sys
-import traceback
 import types
 from typing import Any, Callable, Mapping, List, Dict, TYPE_CHECKING, Optional, TypeVar, Type, Union
 
 import discord
+from loguru import logger
 
 from . import errors
 from .core import GroupMixin, ContextMenuCommand
@@ -55,7 +55,6 @@ if TYPE_CHECKING:
         Check,
         CoroFunc,
     )
-    from discord.guild import Guild
     from .core import Command, Group
 
 __all__ = (
@@ -199,8 +198,9 @@ class BotBase(GroupMixin):
         if cog and cog.has_error_handler():
             return
 
-        print(f'Ignoring exception in command {context.command}:', file=sys.stderr)
-        traceback.print_exception(type(exception), exception, exception.__traceback__, file=sys.stderr)
+        # print(f'Ignoring exception in command {context.command}:', file=sys.stderr)
+        # traceback.print_exception(type(exception), exception, exception.__traceback__, file=sys.stderr)
+        logger.opt(exception=exception).exception('Ignoring exception in command {}:', context.command)
 
     # global check registration
 
