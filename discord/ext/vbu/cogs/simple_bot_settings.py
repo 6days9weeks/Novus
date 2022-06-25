@@ -10,7 +10,7 @@ _ = vbu.translation
 
 class BotSettings(vbu.Cog):
 
-    @vbu.group(name="command")
+    @commands.group(name="command")
     @commands.bot_has_permissions(send_messages=True)
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
@@ -123,7 +123,7 @@ class BotSettings(vbu.Cog):
             + "`" * 3,
         )
 
-    @vbu.command(add_slash_command=False)
+    @commands.command()
     @commands.bot_has_permissions(send_messages=True)
     @commands.guild_only()
     @vbu.checks.is_config_set('database', 'enabled')
