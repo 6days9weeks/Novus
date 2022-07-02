@@ -58,6 +58,7 @@ extras_require = {
         # Main build
         "toml",
         "aiosqlite",
+        "aiomcache",
         "aioredis>=1.3,<2.0",
         "aioredlock>=0.7.0,<0.8",
         "psutil",
