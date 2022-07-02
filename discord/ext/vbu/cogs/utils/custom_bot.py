@@ -20,6 +20,7 @@ from discord.iterators import HistoryIterator
 from discord.ext import commands
 from contextvars import ContextVar
 import upgradechat
+import aiomcache
 
 from .custom_context import Context, SlashContext
 from .database import DatabaseWrapper
@@ -296,6 +297,7 @@ class Bot(MinimalBot):
 
         # Allow Statsd connections like this
         self.stats: typing.Type[StatsdConnection] = StatsdConnection
+        self._memcached: typing.Union[None, aiomcache.Client] = None
         self.stats.config = self.config.get('statsd', {})
 
         # Set embeddify attrs
@@ -564,6 +566,17 @@ class Bot(MinimalBot):
 
         return (self.shard_ids or [0])[0] // len(self.shard_ids or [0])
 
+    @property
+    def memcached(self) -> typing.Union[None, aiomcache.Client]:
+        """:meta private:"""
+
+        if self.config.get('memcached_enabled', None) is None:
+            return None
+        if self._memcached:
+            return self._memcached
+        self._upgrade_chat = aiomcache.Client("127.0.0.1", 11211)
+        return self._memcached    
+    
     @property
     def upgrade_chat(self) -> upgradechat.UpgradeChat:
         """:meta private:"""
