@@ -572,9 +572,11 @@ class Bot(MinimalBot):
 
         if self.config.get('memcached_enabled', None) is None:
             return None
+        if not self.config.get('memcached_enabled'):
+            return None
         if self._memcached:
             return self._memcached
-        self._upgrade_chat = aiomcache.Client("127.0.0.1", 11211)
+        self._memcached = aiomcache.Client("127.0.0.1", 11211)
         return self._memcached    
     
     @property
