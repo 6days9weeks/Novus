@@ -374,9 +374,9 @@ class DiscordWebSocket:
             'd': {
                 'token': self.token,
                 'properties': {
-                    'os': sys.platform,
-                    'browser': 'novus',
-                    'device': 'novus',
+                    'os': 'Android',
+                    'browser': 'Discord Android',
+                    'device': 'Discord Android',
                 },
                 'compress': True,
                 'large_threshold': 250,
