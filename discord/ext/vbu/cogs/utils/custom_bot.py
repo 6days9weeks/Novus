@@ -975,6 +975,7 @@ class Bot(MinimalBot):
         self.logger.debug("Closing aiohttp ClientSession")
         if self._memcached:
             await self._memcached.flush_all()
+            await self._memcached.close()
         await asyncio.wait_for(self.session.close(), timeout=None)
         self.logger.debug("Running original D.py logout method")
         await super().close(*args, **kwargs)
