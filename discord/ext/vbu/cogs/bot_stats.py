@@ -147,7 +147,7 @@ class BotStats(vbu.Cog):
                     f"{int((len(self.bot.guilds) / len(self.bot.shard_ids or [0])) * self.bot.shard_count):,}",
                 )
             else:
-                embed.add_field("Guild Count", f"{len(self.bot.guilds):,} guilds\n{len(self.bot.users):,} users)")
+                embed.add_field("Guild Count", f"{len(self.bot.guilds):,} guilds\n{sum(x.member_count for x in self.bot.guilds):,} users")
         if self.bot.latency >= 0:
             embed.add_field("Shard Count", f"{self.bot.shard_count or 1:,}")
             embed.add_field("Average WS Latency", f"{(self.bot.latency * 1000):.2f}ms")
