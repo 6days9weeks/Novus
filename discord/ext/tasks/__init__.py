@@ -747,6 +747,7 @@ def loop(
     time: Union[datetime.time, Sequence[datetime.time]] = MISSING,
     count: Optional[int] = None,
     reconnect: bool = True,
+    loop: asyncio.AbstractEventLoop = MISSING,
 ) -> Callable[[LF], Loop[LF]]:
     """A decorator that schedules a task in the background for you with
     optional reconnect logic. The decorator returns a :class:`Loop`.
