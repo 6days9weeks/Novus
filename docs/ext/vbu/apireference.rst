@@ -108,6 +108,11 @@ translation
 
 .. autofunction:: voxelbotutils.translation
 
+i18n
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autofunction:: voxelbotutils.i18n
+
 Checks
 -------------------------------------------------
 
