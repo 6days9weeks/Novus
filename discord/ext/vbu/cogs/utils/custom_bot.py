@@ -284,7 +284,8 @@ class Bot(MinimalBot):
 
         # Set up our default guild settings
         self.DEFAULT_GUILD_SETTINGS = {
-            self.config.get('guild_settings_prefix_column', 'prefix'): self.config['default_prefix'],
+            self.config.get('guild_settings_prefix_column', 'prefix'):
+                self.config.get('default_prefix'),
         }
         self.DEFAULT_USER_SETTINGS = {}
         self.DEFAULT_BLACKLISTED_USERS = {}
@@ -411,11 +412,6 @@ class Bot(MinimalBot):
             pass
         for _, cog in self.cogs.items():
             await getattr(cog, "cache_setup", fake_cache_setup_method)(db)
-
-        # Wait for the bot to cache users before continuing
-        if not self.is_interactions_only:
-            self.logger.debug("Waiting until ready before completing startup method.")
-            await self.wait_until_ready()
 
         # Close database connection
         await db.disconnect()
