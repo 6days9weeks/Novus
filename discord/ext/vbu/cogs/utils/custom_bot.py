@@ -960,47 +960,6 @@ class Bot(MinimalBot):
         except Exception:
             return False
 
-    def get_default_extensions(self) -> List[str]:
-        """
-        Gets a list of filenames of all the loadable cogs.
-
-        Returns:
-            List[str]: A list of the extensions found in the cogs/ folder,
-                as well as the cogs included with VoxelBotUtils.
-        """
-
-        # ext = glob.glob('cogs/[!_]*.py')
-        extensions = []
-        extensions.extend([f'discord.ext.vbu.cogs.{i}' for i in all_vfl_package_names])
-        # extensions.extend([i.replace('\\', '.').replace('/', '.')[:-3] for i in ext])
-        self.logger.debug("Getting all extensions: " + str(extensions))
-        return extensions
-
-    def load_default_extensions(self) -> None:
-        """
-        Loads all the extensions from :func:`voxelbotutils.Bot.get_default_extensions`.
-        """
-        # Unload all the given extensions
-        self.logger.info('Unloading default extensions... ')
-        for i in self.get_default_extensions():
-            try:
-                self.unload_extension(i)
-            except Exception as e:
-                self.logger.debug(f' * {i}... failed - {e!s}')
-            else:
-                self.logger.info(f' * {i}... success')
-
-        # Now load em up again
-        self.logger.info('Loading default extensions... ')
-        for i in self.get_default_extensions():
-            try:
-                self.load_extension(i)
-            except Exception as e:
-                self.logger.critical(f' * {i}... failed - {e!s}')
-                raise e
-            else:
-                self.logger.info(f' * {i}... success')
-
     def get_extensions(self) -> List[str]:
         """
         Gets a list of filenames of all the loadable cogs.
@@ -1278,7 +1237,6 @@ class Bot(MinimalBot):
         self.logger.info("Setting activity to default")
         await self.set_default_presence()
         self.logger.info('Bot loaded, trying to chunk guilds.')
-        self.lazy_loaded_method()
         self.is_done_chunking = True
     
     async def hacky_chunk(self) -> None:
@@ -1299,12 +1257,6 @@ class Bot(MinimalBot):
             await asyncio.sleep(0)
         end_time = time.perf_counter()
         self.logger.info(f"Chunked {chunked_guilds} guilds in {self.get_execution_time(end_time, start_time)}")
-    
-    def lazy_loaded_method(self) -> None:
-        """aaaa"""
-        if not self.loaded_all_extensions:
-            self.loaded_all_extensions = True
-            self.load_all_extensions()
 
     async def process_slash_commands(self, interaction: discord.Interaction) -> None:
         """|coro|
