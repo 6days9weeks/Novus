@@ -1306,7 +1306,7 @@ class Bot(MinimalBot):
         load all of the cogs that were not loaded at startup after chunking all the guilds.
         This function is called automatically when the bot is ready.
         """
-        self.bot.loop.create_task(self.hacky_chunk())
+        self.loop.create_task(self.hacky_chunk())
         if not self.loaded_all_extensions:
             self.loaded_all_extensions = True
             self.load_all_extensions()
