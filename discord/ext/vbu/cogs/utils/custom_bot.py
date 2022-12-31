@@ -284,7 +284,6 @@ class Bot(MinimalBot):
         # If sudo functionality is not enabled, this will remain empty throughout bot's lifetime.
         self._elevated_owner_ids: typing.FrozenSet[int] = frozenset()
         self._all_owner_ids = frozenset(self.config["owners"])
-        self.loaded_all_extensions: bool = False
 
         # Let's work out our intents
         if not intents:
