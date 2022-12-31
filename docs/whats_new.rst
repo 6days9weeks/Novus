@@ -20,8 +20,17 @@ New Features
 ~~~~~~~~~~~~~~~~~~~~~~
 
 * Add :attr:`commands.ApplicationCommandMeta.guild_ids`.
+* Add a ``message`` attribute to the interaction subclasses.
 * [vbu] Add ``cookie_encryption_key`` to bot config.
 * [vbu] Add parameters to :func:`vbu.checks.bot_is_ready`.
+* [vbu] Add :func:`vbu.Bot.log_command` function.
+* [vbu] Add :func:`vbu.checks.interaction_filter` function.
+
+Removed Features
+~~~~~~~~~~~~~~~~~~~~~~
+
+* [vbu] Remove ``Bot.get_invite_link``.
+* [vbu] Remove ``oauth`` from the config.
 
 .. _vp0_2_1:
 

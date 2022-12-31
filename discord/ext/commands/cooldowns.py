@@ -75,6 +75,28 @@ class BucketType(Enum):
             # recieving a DMChannel or GroupChannel which inherit from PrivateChannel and do
             return (msg.channel if isinstance(msg.channel, PrivateChannel) else msg.author.top_role).id  # type: ignore
 
+    def _get_key_interaction(self, msg: Interaction) -> Any:
+        # The user has to exist for slashies
+        if not msg.user:
+            raise AssertionError
+
+        if self is BucketType.user:
+            return msg.user.id
+        elif self is BucketType.guild:
+            return msg.guild_id or msg.user.id
+        elif self is BucketType.channel:
+            return msg.channel_id
+        elif self is BucketType.member:
+            return (msg.guild_id, msg.user.id)
+        elif self is BucketType.category:
+            return (msg.channel.category or msg.channel).id  # type: ignore
+        elif self is BucketType.role:
+            # we return the channel id of a private-channel as there are only roles in guilds
+            # and that yields the same result as for a guild with only the @everyone role
+            # NOTE: PrivateChannel doesn't actually have an id attribute but we assume we are
+            # recieving a DMChannel or GroupChannel which inherit from PrivateChannel and do
+            return (msg.channel if msg.guild_id is None else msg.user.top_role).id  # type: ignore
+
     def __call__(self, msg: Message) -> Any:
         return self.get_key(msg)
 

@@ -8,10 +8,8 @@ __all__ = (
     "_EventWebhook",
     "_Intents",
     "_BotListingApiKeys",
-    "_CommandData",
     "_BotInfoLinks",
     "_BotInfo",
-    "_Oauth",
     "_Database",
     "_Redis",
     "_ShardManager",
@@ -64,12 +62,6 @@ class _BotListingApiKeys(TypedDict):
     discordbotlist_token: str
 
 
-class _CommandData(TypedDict):
-    guild_invite: str
-    donate_link: str
-    website_link: str
-
-
 class _BotInfoLinks(TypedDict):
     url: str
     emoji: Optional[str]
@@ -83,13 +75,13 @@ class _BotInfo(TypedDict):
     links: Dict[str, _BotInfoLinks]
 
 
-class _Oauth(TypedDict):
-    enabled: bool
-    response_type: str
-    redirect_uri: str
-    client_id: str
-    scope: str
-    permissions: List[str]
+# class _Oauth(TypedDict):
+#     enabled: bool
+#     response_type: str
+#     redirect_uri: str
+#     client_id: str
+#     scope: str
+#     permissions: List[str]
 
 
 class _Database(TypedDict):
@@ -159,17 +151,22 @@ class _Statsd(TypedDict):
     constant_tags: Dict[str, str]
 
 
-class BotConfig(TypedDict):
+class _BotConfigOptional(TypedDict, total=False):
+    guild_settings_prefix_column: str
+    default_prefix: str
+
+
+class BotConfig(_BotConfigOptional):
     token: str
     pubkey: str
     owners: List[int]
     dm_uncaught_errors: bool
     user_agent: str
-    guild_settings_prefix_column: str
+    # guild_settings_prefix_column: str
     ephemeral_error_messages: bool
     owners_ignore_check_failures: bool
 
-    default_prefix: str
+    # default_prefix: str
     cached_messages: int
 
     support_guild_id: int
@@ -178,9 +175,7 @@ class BotConfig(TypedDict):
     event_webhook: _EventWebhook
     intents: _Intents
     bot_listing_api_keys: _BotListingApiKeys
-    command_data: _CommandData
-    bot_into: _BotInfo
-    oauth: _Oauth
+    bot_info: _BotInfo
     database: _Database
     reids: _Redis
     shard_manager: _ShardManager
