@@ -203,7 +203,8 @@ class ConnectionState:
         if not intents.guilds:
             _log.warning('Guilds intent seems to be disabled. This may cause state related issues.')
 
-        self._chunk_guilds: bool = options.get('chunk_guilds_at_startup', intents.members)
+        # self._chunk_guilds: bool = options.get('chunk_guilds_at_startup', intents.members)
+        self._chunk_guilds: bool = False
 
         # Ensure these two are set properly
         if not intents.members and self._chunk_guilds:
@@ -1092,12 +1093,12 @@ class ConnectionState:
             guild._from_data(data)
             self.dispatch('guild_update', old_guild, guild)
         else:
-            _log.debug('GUILD_UPDATE referencing an unknown guild ID: %s. Discarding.', data['id'])
+            _log.info('GUILD_UPDATE referencing an unknown guild ID: %s. Discarding.', data['id'])
 
     def parse_guild_delete(self, data) -> None:
         guild = self._get_guild(int(data['id']))
         if guild is None:
-            _log.debug('GUILD_DELETE referencing an unknown guild ID: %s. Discarding.', data['id'])
+            _log.info('GUILD_DELETE referencing an unknown guild ID: %s. Discarding.', data['id'])
             return
 
         if data.get('unavailable', False):
@@ -1192,7 +1193,7 @@ class ConnectionState:
 
         # the guild won't be None here
         members = [Member(guild=guild, data=member, state=self) for member in data.get('members', [])]  # type: ignore
-        _log.debug('Processed a chunk for %s members in guild ID %s.', len(members), guild_id)
+        _log.info('Processed a chunk for %s members in guild ID %s.', len(members), guild_id)
 
         if presences:
             member_dict = {str(member.id): member for member in members}
@@ -1440,13 +1441,13 @@ class AutoShardedConnectionState(ConnectionState):
                 break
             else:
                 if self._guild_needs_chunking(guild):
-                    _log.debug('Guild ID %d requires chunking, will be done in the background.', guild.id)
+                    _log.info(f'Guild {guild} ID {guild.id} requires chunking, will be done in the background.')
                     if len(current_bucket) >= max_concurrency:
                         try:
                             await utils.sane_wait_for(current_bucket, timeout=max_concurrency * 70.0)
                         except asyncio.TimeoutError:
-                            fmt = 'Shard ID %s failed to wait for chunks from a sub-bucket with length %d'
-                            _log.warning(fmt, guild.shard_id, len(current_bucket))
+                            fmt = f'Shard ID {guild.shard_id} failed to wait for chunks from a sub-bucket with length {len(current_bucket)} for {guild} ID {guild.id}'
+                            _log.warning(fmt)
                         finally:
                             current_bucket = []
 
