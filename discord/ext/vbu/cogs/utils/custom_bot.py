@@ -1287,6 +1287,7 @@ class Bot(MinimalBot):
         populate the :attr:`.Bot.all_members` cache.
         This function is called automatically when the bot is ready.
         """
+        self.logger.info("Chunking guilds")
         start_time = time.perf_counter()
         chunked_guilds = 0
         for guild in self.guilds:
@@ -1305,11 +1306,8 @@ class Bot(MinimalBot):
         load all of the cogs that were not loaded at startup after chunking all the guilds.
         This function is called automatically when the bot is ready.
         """
-        await self.hacky_chunk()
+        self.bot.loop.create_task(self.hacky_chunk())
         if not self.loaded_all_extensions:
-            while self.is_done_chunking is False:
-                await asyncio.sleep(0.1)
-            self.logger.info("Chunking done... loading all extensions.")
             self.loaded_all_extensions = True
             self.load_all_extensions()
 
