@@ -1278,7 +1278,7 @@ class Bot(MinimalBot):
         self.logger.info("Setting activity to default")
         await self.set_default_presence()
         self.logger.info('Bot loaded, trying to chunk guilds.')
-        await self.lazy_loaded_method()
+        self.lazy_loaded_method()
     
     async def hacky_chunk(self) -> None:
         """|coro|
@@ -1300,13 +1300,8 @@ class Bot(MinimalBot):
         self.logger.info(f"Chunked {chunked_guilds} guilds in {self.get_execution_time(end_time, start_time)}")
         self.is_done_chunking = True
     
-    async def lazy_loaded_method(self) -> None:
-        """|coro|
-        This function is called when the bot is ready, and is used to
-        load all of the cogs that were not loaded at startup after chunking all the guilds.
-        This function is called automatically when the bot is ready.
-        """
-        self.loop.create_task(self.hacky_chunk())
+    def lazy_loaded_method(self) -> None:
+        """aaaa"""
         if not self.loaded_all_extensions:
             self.loaded_all_extensions = True
             self.load_all_extensions()
