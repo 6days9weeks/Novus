@@ -350,6 +350,8 @@ class Bot(MinimalBot):
         self.shard_manager = None
         self.uptime = None
 
+        self.is_done_chunking = False
+
         # Store whether or not we're an interactions only bot
         self.is_interactions_only = False  # Set elsewhere
 
@@ -1252,6 +1254,22 @@ class Bot(MinimalBot):
         self.logger.debug("Running original D.py logout method")
         await super().close(*args, **kwargs)
 
+    @staticmethod
+    def get_execution_time(end, start) -> str:
+        """
+        Gets the execution time string for the ev command.
+        """
+
+        time_taken = end - start
+        precision = "seconds"
+        prefixes = ["milli", "micro", "nano", "pico"]
+        index = 1
+        while float(format(time_taken, ".3f")) < 10:
+            time_taken *= 1_000
+            precision = f"{prefixes[index]}seconds"
+            index += 1
+        return f"Executed in **{time_taken:,.3f}** {precision}."
+
     async def on_ready(self):
         if self.uptime is None:
             self.uptime = discord.utils.utcnow()
@@ -1259,6 +1277,7 @@ class Bot(MinimalBot):
         self.logger.info("Setting activity to default")
         await self.set_default_presence()
         self.logger.info('Bot loaded.')
+        await self.lazy_loaded_method()
     
     async def hacky_chunk(self) -> None:
         """|coro|
@@ -1267,9 +1286,17 @@ class Bot(MinimalBot):
         populate the :attr:`.Bot.all_members` cache.
         This function is called automatically when the bot is ready.
         """
+        start_time = time.perf_counter()
+        chunked_guilds = 0
         for guild in self.guilds:
+            if not guild.chunked:
+                continue
+            chunked_guilds += 1
             await guild.chunk()
             await asyncio.sleep(0)
+        end_time = time.perf_counter()
+        self.logger.info(f"Chunked {chunked_guilds} guilds in {self.get_execution_time(end_time, start_time)}")
+        self.is_done_chunking = True
     
     async def lazy_loaded_method(self) -> None:
         """|coro|
@@ -1279,6 +1306,9 @@ class Bot(MinimalBot):
         """
         await self.hacky_chunk()
         if not self.loaded_all_extensions:
+            while self.is_done_chunking is False:
+                await asyncio.sleep(0.1)
+            self.logger.info("Chunking done... loading all extensions.")
             self.loaded_all_extensions = True
             self.load_all_extensions()
 
