@@ -1279,6 +1279,7 @@ class Bot(MinimalBot):
         await self.set_default_presence()
         self.logger.info('Bot loaded, trying to chunk guilds.')
         self.lazy_loaded_method()
+        self.is_done_chunking = True
     
     async def hacky_chunk(self) -> None:
         """|coro|
@@ -1298,7 +1299,6 @@ class Bot(MinimalBot):
             await asyncio.sleep(0)
         end_time = time.perf_counter()
         self.logger.info(f"Chunked {chunked_guilds} guilds in {self.get_execution_time(end_time, start_time)}")
-        self.is_done_chunking = True
     
     def lazy_loaded_method(self) -> None:
         """aaaa"""
