@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import time
 import collections
 import glob
 import logging
@@ -990,7 +991,7 @@ class Bot(MinimalBot):
                 self.logger.info(f' * {i}... success')
 
         # Now load em up again
-        self.logger.info('Loading extensions... ')
+        self.logger.info('Loading default extensions... ')
         for i in self.get_default_extensions():
             try:
                 self.load_extension(i)
@@ -1276,7 +1277,7 @@ class Bot(MinimalBot):
         self.logger.info(f"Bot connected - {self.user} // {self.user.id}")
         self.logger.info("Setting activity to default")
         await self.set_default_presence()
-        self.logger.info('Bot loaded.')
+        self.logger.info('Bot loaded, trying to chunk guilds.')
         await self.lazy_loaded_method()
     
     async def hacky_chunk(self) -> None:
