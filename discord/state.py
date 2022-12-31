@@ -1192,7 +1192,7 @@ class ConnectionState:
 
         # the guild won't be None here
         members = [Member(guild=guild, data=member, state=self) for member in data.get('members', [])]  # type: ignore
-        _log.info('Processed a chunk for %s members in guild ID %s.', len(members), guild_id)
+        _log.debug('Processed a chunk for %s members in guild ID %s.', len(members), guild_id)
 
         if presences:
             member_dict = {str(member.id): member for member in members}
