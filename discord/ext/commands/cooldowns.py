@@ -27,6 +27,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Deque, Dict, Optional, Type, TypeVar, TYPE_CHECKING
 from discord.enums import Enum
+from discord.interactions import Interaction
 import time
 import asyncio
 from collections import deque
