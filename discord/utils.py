@@ -495,8 +495,8 @@ if HAS_ORJSON:
 
 else:
 
-    def _to_json(obj: Any) -> bytes:
-        return json.dumps(obj, separators=(',', ':'), ensure_ascii=True).encode('utf-8')
+    def _to_json(obj: Any) -> str:
+        return json.dumps(obj, separators=(',', ':'), ensure_ascii=True)
 
     _from_json = json.loads
 
