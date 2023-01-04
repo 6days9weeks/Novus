@@ -278,14 +278,6 @@ class ShardInfo:
         """:class:`float`: Measures latency between a HEARTBEAT and a HEARTBEAT_ACK in seconds for this shard."""
         return self._parent.ws.latency
 
-    def is_ws_ratelimited(self) -> bool:
-        """:class:`bool`: Whether the websocket is currently rate limited.
-
-        This can be useful to know when deciding whether you should query members
-        using HTTP or via the gateway.
-        """
-        return self._parent.ws.is_ratelimited()
-
 
 class AutoShardedClient(Client):
     """A client similar to :class:`Client` except it handles the complications
@@ -525,14 +517,3 @@ class AutoShardedClient(Client):
             # Member.activities is typehinted as Tuple[ActivityType, ...], we may be setting it as Tuple[BaseActivity, ...]
             me.activities = activities  # type: ignore
             me.status = status_enum
-
-    def is_ws_ratelimited(self) -> bool:
-        """:class:`bool`: Whether the websocket is currently rate limited.
-
-        This can be useful to know when deciding whether you should query members
-        using HTTP or via the gateway.
-
-        This implementation checks if any of the shards are rate limited.
-        For more granular control, consider :meth:`ShardInfo.is_ws_ratelimited`.
-        """
-        return any(shard.ws.is_ratelimited() for shard in self.__shards.values())

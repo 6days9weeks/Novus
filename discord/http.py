@@ -26,7 +26,6 @@ DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import sys
 from typing import (
@@ -40,12 +39,10 @@ from typing import (
     Sequence,
     TYPE_CHECKING,
     Tuple,
-    Type,
     TypeVar,
     Union,
 )
 from urllib.parse import quote as _uriquote
-import weakref
 
 import aiohttp
 
@@ -83,14 +80,12 @@ if TYPE_CHECKING:
         channel,
         widget,
         threads,
-        voice,
         sticker,
         welcome_screen,
         guild_scheduled_event,
     )
     from .types.snowflake import Snowflake, SnowflakeList
 
-    from types import TracebackType
 
     T = TypeVar('T')
     BE = TypeVar('BE', bound=BaseException)
@@ -111,7 +106,7 @@ async def json_or_text(response: aiohttp.ClientResponse) -> Union[Dict[str, Any]
 
 
 class Route:
-    BASE: ClassVar[str] = 'https://discord.com/api/v8'
+    BASE: ClassVar[str] = 'http://localhost:3232/api/v8'
 
     def __init__(self, method: str, path: str, **parameters: Any) -> None:
         self.path: str = path
@@ -126,32 +121,6 @@ class Route:
         self.guild_id: Optional[Snowflake] = parameters.get('guild_id')
         self.webhook_id: Optional[Snowflake] = parameters.get('webhook_id')
         self.webhook_token: Optional[str] = parameters.get('webhook_token')
-
-    @property
-    def bucket(self) -> str:
-        # the bucket is just method + path w/ major parameters
-        return f'{self.channel_id}:{self.guild_id}:{self.path}'
-
-
-class MaybeUnlock:
-    def __init__(self, lock: asyncio.Lock) -> None:
-        self.lock: asyncio.Lock = lock
-        self._unlock: bool = True
-
-    def __enter__(self: MU) -> MU:
-        return self
-
-    def defer(self) -> None:
-        self._unlock = False
-
-    def __exit__(
-        self,
-        exc_type: Optional[Type[BE]],
-        exc: Optional[BE],
-        traceback: Optional[TracebackType],
-    ) -> None:
-        if self._unlock:
-            self.lock.release()
 
 
 # For some reason, the Discord voice websocket expects this header to be
@@ -174,8 +143,6 @@ class HTTPClient:
         self.loop: asyncio.AbstractEventLoop = asyncio.get_event_loop() if loop is None else loop
         self.connector = connector
         self.__session: aiohttp.ClientSession = MISSING  # filled in static_login
-        self._locks: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
-        self._global_over: asyncio.Event = asyncio.Event()
         self._global_over.set()
         self.token: Optional[str] = None
         self.bot_token: bool = False
@@ -213,16 +180,9 @@ class HTTPClient:
             *,
             files: Optional[Sequence[File]] = None,
             form: Optional[Iterable[Dict[str, Any]]] = None,
-            **kwargs: Any) -> Any:
-        bucket = route.bucket
+            **kwargs: Any) -> Any:     
         method = route.method
         url = route.url
-
-        lock = self._locks.get(bucket)
-        if lock is None:
-            lock = asyncio.Lock()
-            if bucket is not None:
-                self._locks[bucket] = lock
 
         # header creation
         headers: Dict[str, str] = {
@@ -252,106 +212,63 @@ class HTTPClient:
         if self.proxy_auth is not None:
             kwargs['proxy_auth'] = self.proxy_auth
 
-        if not self._global_over.is_set():
-            # wait until the global lock is complete
-            await self._global_over.wait()
-
         response: Optional[aiohttp.ClientResponse] = None
         data: Optional[Union[Dict[str, Any], str]] = None
-        await lock.acquire()
-        with MaybeUnlock(lock) as maybe_lock:
-            for tries in range(5):
-                if files:
-                    for f in files:
-                        f.reset(seek=tries)
+        kwargs['timeout'] = aiohttp.ClientTimeout(total=None)
 
-                if form:
-                    form_data = aiohttp.FormData()
-                    for params in form:
-                        form_data.add_field(**params)
-                    kwargs['data'] = form_data
+        for tries in range(5):
+            if files:
+                for f in files:
+                    f.reset(seek=tries)
+            if form:
+                # with quote_fields=True '[' and ']' in file field names are escaped, which discord does not support
+                form_data = aiohttp.FormData(quote_fields=False)
+                for params in form:
+                    form_data.add_field(**params)
+                kwargs['data'] = form_data
 
-                try:
-                    async with self.__session.request(method, url, **kwargs) as response:
-                        _log.debug('%s %s with %s has returned %s', method, url, kwargs.get('data'), response.status)
+            try:
+                async with self.__session.request(method, url, **kwargs) as response:
+                    _log.debug('%s %s with %s has returned %s', method, url, kwargs.get('data'), response.status)
 
-                        # even errors have text involved in them so this is safe to call
-                        data = await json_or_text(response)
+                    # even errors have text involved in them so this is safe to call
+                    data = await json_or_text(response)
 
-                        # check if we have rate limit header information
-                        remaining = response.headers.get('X-Ratelimit-Remaining')
-                        if remaining == '0' and response.status != 429:
-                            # we've depleted our current bucket
-                            delta = utils._parse_ratelimit_header(response, use_clock=self.use_clock)
-                            _log.debug('A rate limit bucket has been exhausted (bucket: %s, retry: %s).', bucket, delta)
-                            maybe_lock.defer()
-                            self.loop.call_later(delta, lock.release)
+                    # the request was successful so just return the text/json
+                    if 300 > response.status >= 200:
+                        _log.debug('%s %s has received %s', method, url, data)
+                        return data
 
-                        # the request was successful so just return the text/json
-                        if 300 > response.status >= 200:
-                            _log.debug('%s %s has received %s', method, url, data)
-                            return data
-
-                        # we are being rate limited
-                        if response.status == 429:
-                            if not response.headers.get('Via') or isinstance(data, str):
-                                # Banned by Cloudflare more than likely.
-                                raise HTTPException(response, data)
-
-                            fmt = 'We are being rate limited. Retrying in %.2f seconds. Handled under the bucket "%s"'
-
-                            # sleep a bit
-                            retry_after: float = data['retry_after']
-                            _log.warning(fmt, retry_after, bucket)
-
-                            # check if it's a global rate limit
-                            is_global = data.get('global', False)
-                            if is_global:
-                                _log.warning('Global rate limit has been hit. Retrying in %.2f seconds.', retry_after)
-                                self._global_over.clear()
-
-                            await asyncio.sleep(retry_after)
-                            _log.debug('Done sleeping for the rate limit. Retrying...')
-
-                            # release the global lock now that the
-                            # global rate limit has passed
-                            if is_global:
-                                self._global_over.set()
-                                _log.debug('Global rate limit is now over.')
-
-                            continue
-
-                        # we've received a 500, 502, or 504, unconditional retry
-                        if response.status in {500, 502, 504}:
-                            await asyncio.sleep(1 + tries * 2)
-                            continue
-
-                        # the usual error cases
-                        if response.status == 403:
-                            raise Forbidden(response, data)
-                        elif response.status == 404:
-                            raise NotFound(response, data)
-                        elif response.status >= 500:
-                            raise DiscordServerError(response, data)
-                        else:
-                            raise HTTPException(response, data)
-
-                # This is handling exceptions from the request
-                except OSError as e:
-                    # Connection reset by peer
-                    if tries < 4 and e.errno in (54, 10054):
+                    # we've received a 500, 502, or 504, unconditional retry
+                    if response.status in {500, 502, 504}:
                         await asyncio.sleep(1 + tries * 2)
                         continue
-                    raise
+                    # the usual error cases
+                    if response.status == 403:
+                        raise Forbidden(response, data)
+                    elif response.status == 404:
+                        raise NotFound(response, data)
+                    elif response.status >= 500:
+                        raise DiscordServerError(response, data)
+                    else:
+                        raise HTTPException(response, data)
 
-            if response is not None:
-                # We've run out of retries, raise.
-                if response.status >= 500:
-                    raise DiscordServerError(response, data)
+            # This is handling exceptions from the request
+            except OSError as e:
+                # Connection reset by peer
+                if tries < 4 and e.errno in (54, 10054):
+                    await asyncio.sleep(1 + tries * 2)
+                    continue
+                raise
 
-                raise HTTPException(response, data)
+        if response is not None:
+            # We've run out of retries, raise.
+            if response.status >= 500:
+                raise DiscordServerError(response, data)
 
-            raise RuntimeError('Unreachable code in HTTP handling')
+            raise HTTPException(response, data)
+
+        raise RuntimeError('Unreachable code in HTTP handling')
 
     async def get_from_cdn(self, url: str) -> bytes:
         async with self.__session.get(url) as resp:

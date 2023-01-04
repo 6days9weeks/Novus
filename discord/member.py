@@ -27,9 +27,8 @@ from __future__ import annotations
 import datetime
 import inspect
 import itertools
-import sys
 from operator import attrgetter
-from typing import Any, Dict, List, Literal, Optional, TYPE_CHECKING, Tuple, Type, TypeVar, Union, overload
+from typing import Any, Dict, List, Literal, Optional, TYPE_CHECKING, Tuple, Type, TypeVar, Union
 
 import discord.abc
 

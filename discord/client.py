@@ -268,8 +268,6 @@ class Client:
         This can be useful to know when deciding whether you should query members
         using HTTP or via the gateway.
         """
-        if self.ws:
-            return self.ws.is_ratelimited()
         return False
 
     @property
@@ -465,8 +463,7 @@ class Client:
             Whether this IDENTIFY is the first initial IDENTIFY.
         """
 
-        if not initial:
-            await asyncio.sleep(5.0)
+        pass
 
     # login state management
 

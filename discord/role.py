@@ -25,7 +25,7 @@ DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 import io
-from typing import Any, Dict, List, Optional, TypeVar, Union, overload, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TypeVar, Union, TYPE_CHECKING
 
 from .permissions import Permissions
 from .errors import InvalidArgument
