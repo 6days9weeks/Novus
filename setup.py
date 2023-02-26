@@ -39,23 +39,22 @@ with open('README.rst') as f:
     readme = f.read()
 
 
-install_requires = {
-    'voice': [
-        'PyNaCl>=1.3.0,<1.5',
+extras_require = {
+    "voice":[
+        "PyNaCl>=1.3.0,<1.5"
     ],
-    'docs': [
-        'sphinx==4.0.2',
-        'sphinxcontrib_trio==1.1.2',
-        'sphinxcontrib-websupport',
+    "docs":[
+        "sphinx==4.0.2",
+        "sphinxcontrib_trio==1.1.2",
+        "sphinxcontrib-websupport"
     ],
-    'speed': [
-        'orjson>=3.5.4',
-        'aiodns>=1.1',
-        'Brotli',
-        'cchardet',
+    "speed":[
+        "orjson>=3.5.4",
+        "aiodns>=1.1",
+        "Brotli",
+        "cchardet"
     ],
-    'vbu': [
-        # Main build
+    "vbu":[
         "toml",
         "aiosqlite",
         "aiomcache",
@@ -65,14 +64,12 @@ install_requires = {
         "tabulate",
         "aiodogstatsd>=0.14.0,<0.15",
         "upgradechatpy>=1.0.3<2.0",
-
-        # Web build
         "cryptography",
         "aiohttp_jinja2",
         "aiohttp_session",
         "jinja2>=3.0.0,<4.0.0",
         "markdown",
-        "htmlmin",
+        "htmlmin"
     ]
 }
 
