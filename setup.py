@@ -39,7 +39,7 @@ with open('README.rst') as f:
     readme = f.read()
 
 
-extras_require = {
+install_requires = {
     'voice': [
         'PyNaCl>=1.3.0,<1.5',
     ],
